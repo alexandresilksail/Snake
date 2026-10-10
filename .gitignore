@@ -1,0 +1,6 @@
+# 过程产物（自检截图、临时文件）
+_shots/
+.tmp-tool-results/
+__pycache__/
+*.pyc
+.DS_Store
