@@ -154,6 +154,27 @@ button:focus-visible{outline:2px solid var(--gold-bright);outline-offset:2px;}
 @keyframes flyUp{0%{opacity:0;transform:translate(-50%,-6px) scale(.7);}
   15%{opacity:1;}100%{opacity:0;transform:translate(-50%,-46px) scale(1.15);}}
 
+/* ---------- 竞技模式 HUD ---------- */
+#arena-hud{position:fixed;inset:0;pointer-events:none;z-index:6;}
+.arena-top{position:absolute;top:14px;right:14px;}
+.arena-rank{width:min(215px,34vw);padding:10px 12px;font-size:13px;backdrop-filter:blur(4px);}
+.arena-rank-title{font-weight:800;color:var(--amber);letter-spacing:2px;margin-bottom:6px;
+  border-bottom:1.5px solid var(--line-gold);padding-bottom:5px;font-family:var(--font-title);}
+#arena-rank-list div{display:flex;justify-content:space-between;gap:8px;padding:2.5px 0;font-size:12.5px;color:var(--ink);}
+#arena-rank-list .me{color:var(--vermilion-deep);font-weight:800;background:rgba(255,255,255,.55);
+  border-radius:4px;padding:2.5px 5px;margin:0 -5px;}
+.arena-side{position:absolute;top:14px;left:14px;display:flex;flex-direction:column;gap:8px;}
+.arena-info{padding:9px 14px;font-size:14px;line-height:1.55;backdrop-filter:blur(4px);}
+.arena-info b{font-family:var(--font-title);font-size:17px;color:var(--vermilion-deep);}
+.arena-side button{width:52px;height:40px;border-radius:6px;background:var(--washi);color:var(--ink);
+  border:1.5px solid var(--gold);font-size:13px;font-weight:700;letter-spacing:1px;
+  pointer-events:auto;cursor:pointer;transition:all .15s ease;}
+.arena-side button:hover{background:var(--gold);color:#fff;}
+.arena-bottom{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);
+  background:rgba(44,62,95,.62);color:#fff;padding:8px 18px;border-radius:22px;
+  font-size:13px;letter-spacing:1px;white-space:nowrap;}
+.arena-bottom .key{background:rgba(255,255,255,.22);padding:1px 7px;border-radius:4px;margin:0 2px;}
+
 /* ---------- 商店 ---------- */
 .shop-tabs{display:flex;gap:8px;justify-content:center;margin-bottom:18px;}
 .shop-tab{padding:9px 22px;border-radius:4px;font-size:13.5px;font-weight:700;color:#6d5c46;
@@ -338,6 +359,7 @@ button:focus-visible{outline:2px solid var(--gold-bright);outline-offset:2px;}
       <div class="btn-row" style="flex-direction:column;align-items:center;">
         <button class="btn btn-primary btn-lg" id="btn-menu-start" style="width:min(300px,80%);">开始闯关</button>
         <button class="btn btn-mint btn-lg" id="btn-menu-endless" style="width:min(300px,80%);">无限模式</button>
+        <button class="btn btn-danger btn-lg" id="btn-menu-arena" style="width:min(300px,80%);">竞技模式 · 10 蛇乱斗</button>
         <button class="btn btn-ghost btn-lg" id="btn-menu-shop" style="width:min(300px,80%);">商店</button>
       </div>
       <div class="hint-line">
@@ -421,6 +443,42 @@ button:focus-visible{outline:2px solid var(--gold-bright);outline-offset:2px;}
       <div class="btn-row" style="margin-top:18px;">
         <button class="btn btn-primary btn-lg" id="btn-over-retry">重新开始</button>
         <button class="btn btn-ghost btn-lg" id="btn-over-back">返回选关</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 竞技模式 HUD ===== -->
+  <div id="arena-hud" class="hidden">
+    <div class="arena-top">
+      <div class="arena-rank panel">
+        <div class="arena-rank-title">实时排行</div>
+        <div id="arena-rank-list"></div>
+      </div>
+    </div>
+    <div class="arena-side">
+      <div class="arena-info panel">
+        <div><span class="hud-label">长度</span>&nbsp;<b id="arena-len">0</b></div>
+        <div><span class="hud-label">分数</span>&nbsp;<b id="arena-score">0</b></div>
+      </div>
+      <button id="btn-arena-pause" title="暂停 (Esc / P)">暂停</button>
+      <button id="btn-arena-mute" title="静音 (M)">音</button>
+    </div>
+    <div class="arena-bottom"><span id="arena-hint">鼠标移动转向 · 按住空格 / 鼠标左键加速（加速消耗长度）</span></div>
+  </div>
+
+  <!-- ===== 竞技结束 ===== -->
+  <div id="screen-arena-over" class="screen hidden">
+    <div class="screen-inner panel" style="width:min(480px,92vw);">
+      <div class="big-emblem emblem-over">竞技结束</div>
+      <div class="game-sub" id="arena-over-title">你被击败了！</div>
+      <div class="result-stats">
+        <div class="result-stat"><div class="v" id="arena-over-len">0</div><div class="k">最终长度</div></div>
+        <div class="result-stat"><div class="v" id="arena-over-score">0</div><div class="k">最终分数</div></div>
+        <div class="result-stat"><div class="v" id="arena-over-rank">0</div><div class="k">排名</div></div>
+      </div>
+      <div class="btn-row" style="margin-top:18px;">
+        <button class="btn btn-primary btn-lg" id="btn-arena-retry">再来一局</button>
+        <button class="btn btn-ghost btn-lg" id="btn-arena-back">返回菜单</button>
       </div>
     </div>
   </div>
@@ -680,6 +738,7 @@ function bonusSpawnInterval(){
 }
 
 function startLevel(levelNumber){
+  if(arenaMode) arenaQuit();
   currentLevelNumber = levelNumber;
   isEndless = levelNumber > 10;
   if(levelNumber === ENDLESS_START) endlessRunScore = 0;
@@ -799,11 +858,475 @@ function updatePlay(dt){
 }
 
 /* ============================================================
- * [二] Three.js 3D 场景层（全新）
- * 场景设计：深色竞技场 —— 反光石面地板 + 能量网格 + 石质障碍 + 发光能量食物
- * 光照：主光（冷白，决定形体与投影）+ 暖色补光 + 青色轮廓光 + 程序化环境反射
- * 镜头：50° 焦距，距离随棋盘尺寸推导，缓慢漂移 + 关卡入场俯冲 + 死亡受控抖动
+ * [一·S] 单机 Slither 竞技模式（V2 强制修复目标）
+ * 连续移动模型：头部轨迹路径（世界坐标）+ 段距离回溯；
+ * 身体长度与段数直接关联（len*segLen = 路径保留长度），
+ * 增长 = 路径保留长度增加 = 尾部不再被裁剪，真实变长。
+ * 玩家 + 10 条本地 AI，能量球掉落，实时排行榜。
  * ============================================================ */
+const ARENA_R = 38;              /* 圆形竞技场半径（世界单位） */
+let ARENA_MAX_FOOD = 70;
+const ARENA_AI_COUNT = 10;
+let arenaMode = false;
+let playerSnake = null;
+let aiSnakes = [];
+let worldFoods = [];
+let arenaOrbs = [];
+let arenaSegPts = [];            /* 每帧收集的全部蛇身体采样点（碰撞/避碰用） */
+let arenaRaycaster = null;
+let arenaTime = 0;
+let arenaHudTimer = 0;
+let arenaMsgTimer = 0;
+let arenaRankCache = [];
+
+function newSlither(o){
+  return {
+    id:o.id, isPlayer:!!o.isPlayer, name:o.name||'蛇',
+    x:o.x, y:o.y, angle:o.angle||0,
+    baseSpeed:o.speed||5.2, boostMult:o.boostMult||1.45,
+    turnRate:o.turnRate||2.4, boosting:false,
+    segLen:1.2, len:o.len||3, score:0,
+    path:[{x:o.x, y:o.y}],
+    growthFlash:0, headR:0.62,
+    alive:true, respawnIn:0, static:!!o.static,
+    target:null, reselect:0, wander:Math.random()*6.283,
+    headCol:o.headCol||'#d97b1f', bodyCol:o.bodyCol||'#ffc06a', darkCol:o.darkCol||'#b26014',
+    hue:o.hue!==undefined?o.hue:null,
+  };
+}
+function arenaBoundsR(){ return ARENA_R - 0.9; }
+
+/* ---- 路径工具：身体跟随核心 ---- */
+/* 截断路径到 maxLen：保留「距最新头部 maxLen」内的轨迹。
+ * path 排列：path[0]=最老点（尾端），path[n-1]=最新头部。
+ * 从头端（末尾）向老端累计 maxLen，超过部分（老端 [0..i-1]）移除，
+ * 以插值点 cut 作为新尾端；新蛇/增长瞬间路径短于 maxLen 则不裁剪（身体真实变长）。 */
+function trimPath(path, maxLen){
+  if(path.length < 2) return;
+  let total = 0;
+  for(let i=path.length-1; i>=1; i--){
+    const d = Math.hypot(path[i].x-path[i-1].x, path[i].y-path[i-1].y);
+    if(total + d >= maxLen){
+      const over = total + d - maxLen;     /* 距头端 maxLen 处（在段 (i-1,i) 内） */
+      const t = d>0 ? over/d : 0;
+      const cut = {x:path[i-1].x + (path[i].x-path[i-1].x)*t,
+                   y:path[i-1].y + (path[i].y-path[i-1].y)*t};
+      path.splice(0, i, cut);              /* 移除老端，cut 成为新尾端（距头 = maxLen） */
+      return;
+    }
+    total += d;
+  }
+  /* 整条路径短于 maxLen（新蛇 / 增长瞬间）：不裁剪，即身体真实变长 */
+}
+/* 沿路径回溯距离 d 处的点（path[0]=尾端，朝头部 d 增加），二分加速 */
+function pathPointAt(path, d){
+  const n = path.length;
+  if(n < 2 || d <= 0) return {x:path[0].x, y:path[0].y};
+  if(!path.__dists || path.__dists.length !== n) rebuildPathCache(path); /* 缓存自愈（path 被重置/裁剪后） */
+  const ds = path.__dists;
+  const segs = path.__segs;
+  let lo=1, hi=n-1;
+  while(lo<hi){
+    const mid=(lo+hi)>>1;
+    if(ds[mid] < d) lo=mid+1; else hi=mid;
+  }
+  const i = Math.max(1, lo);
+  const prev = ds[i-1], seg = segs[i-1];
+  const t = seg>0 ? (d-prev)/seg : 0;
+  return {x:path[i-1].x+(path[i].x-path[i-1].x)*t,
+          y:path[i-1].y+(path[i].y-path[i-1].y)*t};
+}
+function rebuildPathCache(path){
+  const n = path.length;
+  const ds = new Float64Array(n), segs = new Float64Array(n-1);
+  let acc=0; ds[0]=0;
+  for(let i=1;i<n;i++){
+    const d = Math.hypot(path[i].x-path[i-1].x, path[i].y-path[i-1].y);
+    acc += d; ds[i]=acc; segs[i-1]=d;
+  }
+  path.__dists=ds; path.__segs=segs;
+}
+/* 身体第 idx 段位置（idx=0 为颈段）。
+ * path 约定：path[0]=最老点（尾端），path[n-1]=最新头部。
+ * 段 idx 应距头部 (idx+1)*segLen → 即距尾部 total-(idx+1)*segLen。 */
+function slitherBodyPoint(s, idx){
+  const ds = s.path.__dists;
+  const total = (ds && s.path.length>0) ? ds[s.path.length-1] : 0;
+  const d = Math.max(0, total - (idx+1)*s.segLen);
+  return pathPointAt(s.path, d);
+}
+
+/* ---- 转向 ---- */
+function turnToward(s, targetAngle, dt){
+  let da = targetAngle - s.angle;
+  while(da > Math.PI) da -= Math.PI*2;
+  while(da < -Math.PI) da += Math.PI*2;
+  const tr = s.turnRate * (s.boosting ? 0.72 : 1) * dt;
+  s.angle += Math.max(-tr, Math.min(tr, da));
+}
+
+/* ---- 移动一步（连续） ---- */
+function slitherMove(s, dt){
+  const sp = s.baseSpeed * (s.boosting ? s.boostMult : 1);
+  s.x += Math.cos(s.angle)*sp*dt;
+  s.y += Math.sin(s.angle)*sp*dt;
+  s.path.push({x:s.x, y:s.y});
+  trimPath(s.path, s.len*s.segLen);
+  rebuildPathCache(s.path);      /* trim 后再重建缓存，保证 path 与缓存长度一致 */
+  if(s.growthFlash>0) s.growthFlash = Math.max(0, s.growthFlash-dt);
+}
+
+/* ---- 全部蛇身体采样点（碰撞/避碰） ---- */
+function collectSegments(){
+  const pts = [];
+  const all = [playerSnake, ...aiSnakes].filter(s=>s && s.alive);
+  for(const s of all){
+    rebuildPathCache(s.path);
+    const step = Math.max(1, Math.floor(s.len/18));
+    for(let i=2;i<s.len;i+=step){
+      const p = slitherBodyPoint(s, i);
+      pts.push({x:p.x, y:p.y, r:0.52, s});
+    }
+  }
+  return pts;
+}
+
+/* ---- 食物生成（合法位置：圆内、不与蛇身重叠；40 次尝试后兜底返回，杜绝死循环） ---- */
+function arenaSpawnFood(){
+  const segs = arenaSegPts;
+  for(let t=0;t<40;t++){
+    const a = Math.random()*Math.PI*2;
+    const r = Math.sqrt(Math.random())*arenaBoundsR()*0.94;
+    const x = Math.cos(a)*r, y = Math.sin(a)*r;
+    let ok = true;
+    for(let i=0;i<segs.length;i++){ const p=segs[i]; if(Math.hypot(p.x-x,p.y-y) < 1.5){ ok=false; break; } }
+    if(!ok) continue;
+    const golds = worldFoods.filter(f=>f.gold).length;
+    const isGold = golds<2 && Math.random()<0.05;
+    return {x, y, r:isGold?0.85:0.55, gold:isGold, frost:!isGold && Math.random()<0.07, value:isGold?3:1};
+  }
+  return {x:(Math.random()-0.5)*arenaBoundsR()*1.6, y:(Math.random()-0.5)*arenaBoundsR()*1.6,
+          r:0.55, gold:false, frost:false, value:1};
+}
+function arenaRefillFoods(){
+  while(worldFoods.length < ARENA_MAX_FOOD) worldFoods.push(arenaSpawnFood());
+}
+
+/* ---- 吃食物：每帧判定一次，命中立即从数组移除 → 只计分一次 ---- */
+function arenaEatCheck(s){
+  for(let i=worldFoods.length-1;i>=0;i--){
+    const f = worldFoods[i];
+    if(Math.hypot(f.x-s.x, f.y-s.y) < f.r + s.headR*0.8){
+      worldFoods.splice(i,1);
+      s.len += 1;                 /* 身体真实 +1 段（路径保留长度增加） */
+      s.score += f.value;
+      s.growthFlash = 1.0;
+      if(s.isPlayer){
+        if(typeof sfxEat==='function'){ f.gold ? sfxGolden() : (f.frost?sfxFrost():sfxEat()); }
+        if(f.gold && typeof uiFlyScore==='function') uiFlyScore({x:s.x,y:0.9,z:s.y}, '+3', 0xffd76a);
+      }
+      arenaRefillFoods();
+      return;
+    }
+  }
+}
+
+/* ---- 能量球 ---- */
+function spawnDeathOrbs(s){
+  const n = Math.min(24, s.len);
+  for(let i=0;i<n;i++){
+    const p = slitherBodyPoint(s, i);
+    arenaOrbs.push({x:p.x + (Math.random()-0.5)*0.5, y:p.y + (Math.random()-0.5)*0.5,
+                    r:0.5 + Math.random()*0.35, value:1, life:30});
+  }
+  arenaOrbs.push({x:s.x, y:s.y, r:0.9, value:3, life:40}); /* 头球：+3 */
+}
+function arenaOrbCheck(s){
+  for(let i=arenaOrbs.length-1;i>=0;i--){
+    const o = arenaOrbs[i];
+    if(Math.hypot(o.x-s.x, o.y-s.y) < o.r + s.headR*0.8){
+      arenaOrbs.splice(i,1);
+      s.len += 1;
+      s.score += o.value;
+      s.growthFlash = 0.8;
+      if(s.isPlayer && typeof sfxEat==='function') sfxEat();
+    }
+  }
+}
+
+/* ---- 碰撞（头 vs 身体/边界/自身；规则：头撞身体 → 头方死亡） ---- */
+function segCollideHead(head, pts){
+  for(let i=0;i<pts.length;i++){
+    const p = pts[i];
+    if(p.s === head) continue;              /* 不与自己段碰撞（自身碰撞单独检测） */
+    if(Math.hypot(p.x-head.x, p.y-head.y) < p.r + head.headR*0.85) return true;
+  }
+  return false;
+}
+function selfCollide(s){
+  const total = (s.path.__dists && s.path.length>0) ? s.path.__dists[s.path.length-1] : 0;
+  const step = Math.max(1, Math.floor(s.len/24));
+  for(let i=3;i<s.len;i+=step){
+    const d = (i+1)*s.segLen;
+    if(d > total) continue;   /* 该段尚未展开（新蛇/刚增长）→ 不判为自撞 */
+    const p = slitherBodyPoint(s, i);
+    if(Math.hypot(p.x-s.x, p.y-s.y) < 0.55 + s.headR*0.85) return true;
+  }
+  return false;
+}
+
+/* ---- AI 决策：目标选择 + 转向 + 避碰 + 加速策略 ---- */
+function updateAIBrain(a, dt){
+  if(!a.alive) return;
+  a.reselect -= dt;
+  const g = Math.hypot(a.x, a.y);
+  if(g > arenaBoundsR()){ turnToward(a, Math.atan2(-a.y, -a.x)+Math.PI*0.5, dt); }
+  /* 目标重选 */
+  if(a.reselect<=0 || !a.target || Math.hypot(a.target.x-a.x, a.target.y-a.y) < 1.2){
+    a.reselect = 0.35 + Math.random()*0.4;
+    let best=null, bestScore=1e9;
+    /* 候选：能量球（价值高）> 黄金食物 > 普通食物 */
+    const cands = [];
+    for(let i=0;i<arenaOrbs.length;i++){ const o=arenaOrbs[i]; cands.push({x:o.x,y:o.y,w:o.value+2}); }
+    for(let i=0;i<worldFoods.length;i++){ const f=worldFoods[i]; cands.push({x:f.x,y:f.y,w:f.gold?6:1}); }
+    const sampleN = Math.min(12, cands.length);
+    for(let k=0;k<sampleN;k++){
+      const c = cands[(Math.random()*cands.length)|0];
+      const d = Math.hypot(c.x-a.x, c.y-a.y);
+      const sc = d / (c.w+1e-6);
+      if(sc < bestScore){ bestScore = sc; best = c; }
+    }
+    a.target = best || {x:(Math.random()-0.5)*arenaBoundsR()*0.8, y:(Math.random()-0.5)*arenaBoundsR()*0.8};
+  }
+  let aim = Math.atan2(a.target.y-a.y, a.target.x-a.x);
+  a.wander += (Math.random()-0.5)*0.9;
+  aim += Math.sin(a.wander)*0.5;
+  /* 避碰：探测前方两点 */
+  for(const look of [2.4, 4.2]){
+    const lx = a.x + Math.cos(a.angle)*look, ly = a.y + Math.sin(a.angle)*look;
+    if(Math.hypot(lx,ly) > arenaBoundsR()){ aim += 0.9; break; }
+    let hit = false;
+    for(let i=0;i<arenaSegPts.length;i++){
+      const p = arenaSegPts[i];
+      if(p.s === a) continue;
+      if(Math.hypot(p.x-lx, p.y-ly) < p.r + 0.75){ hit = true; break; }
+    }
+    if(hit){ aim += (Math.random()<0.5?1:-1)*1.6; break; }
+  }
+  turnToward(a, aim, dt);
+  /* 加速策略：目标较远时间歇 boost（不耗尽质量） */
+  const dT = a.target ? Math.hypot(a.target.x-a.x, a.target.y-a.y) : 0;
+  a.boosting = a.len>5 && dT>9 && Math.sin(a.wander*0.6 + arenaTime*0.7) > 0.55;
+  /* 加速消耗质量 */
+  if(a.boosting){
+    a.boostHold += dt;
+    if(a.boostHold > 2.2){ a.boostHold = 0; if(a.len>4){ a.len -= 1; a.score = Math.max(0, a.score-1); } }
+  }
+}
+
+/* ---- 蛇死亡 ---- */
+function killSnake(s){
+  if(!s.alive) return;
+  s.alive = false;
+  s.respawnIn = 3 + Math.random()*3;
+  spawnDeathOrbs(s);
+  if(s.isPlayer){
+    arenaModeOver('你被击败了！');
+  } else if(typeof sfxHit==='function'){ sfxHit && sfxHit(); }
+}
+function respawnAI(a){
+  const ang = Math.random()*Math.PI*2, r = arenaBoundsR()*0.8;
+  a.x = Math.cos(ang)*r; a.y = Math.sin(ang)*r;
+  a.angle = Math.atan2(-a.y, -a.x);
+  a.len = 3 + (Math.random()*4)|0;
+  a.score = 0; a.alive = true; a.respawnIn = 0; a.path = [{x:a.x, y:a.y}];
+  a.target = null; a.boostHold = 0;
+}
+
+/* ---- 排行榜 ---- */
+function computeRanking(){
+  /* 玩家死亡后仍留在榜单（显示死亡时名次）；AI 死亡则移除 */
+  const list = [playerSnake, ...aiSnakes].filter(s=>s && (s.alive || s.isPlayer));
+  list.sort((a,b)=> b.len - a.len || b.score - a.score);
+  arenaRankCache = list;
+  return list;
+}
+
+/* ---- 玩家输入 ---- */
+let arenaMouse = {x:0, y:0, ndc:{x:0,y:0}, has:false};
+let arenaMouseDown = false;
+function arenaSetMouseNdc(nx, ny){ arenaMouse.ndc = {x:nx, y:ny}; arenaMouse.has = true; }
+function updatePlayerAim(dt){
+  const s = playerSnake; if(!s || !s.alive) return;
+  let aim = null;
+  if(use2D){
+    /* 2D：屏幕坐标直接换算到竞技场坐标 */
+    const cx = arena2d ? (arena2d.cx + arena2d.scale2*s.x) : 0;
+    const cy = arena2d ? (arena2d.cy + arena2d.scale2*s.y) : 0;
+    if(arenaMouse.has) aim = Math.atan2(arenaMouse.y-cy, arenaMouse.x-cx);
+  } else if(scene && camera && arenaRaycaster && arenaMouse.has){
+    arenaRaycaster.setFromCamera(arenaMouse.ndc, camera);
+    const pt = arenaRaycaster.ray.intersectPlane(arenaGroundPlane, tmpV);
+    if(pt) aim = Math.atan2(pt.z - s.y, pt.x - s.x);
+  }
+  if(aim !== null) turnToward(s, aim, dt);
+}
+const arenaGroundPlane = new THREE.Plane(new THREE.Vector3(0,1,0), -0.6);
+
+/* ---- 主更新（竞技模式） ---- */
+function updateArenaPlay(dt){
+  arenaTime += dt;
+  if(arenaMsgTimer>0) arenaMsgTimer = Math.max(0, arenaMsgTimer-dt);
+  arenaSegPts = collectSegments();
+  arenaRefillFoods();
+
+  /* 玩家 */
+  const p = playerSnake;
+  if(p){
+    if(p.alive){
+      p.boosting = (arenaMouseDown || arenaKeys['Space']) && p.len>2;
+      if(p.boosting){ p.boostHold += dt; if(p.boostHold>2.5){ p.boostHold=0; if(p.len>3){ p.len-=1; } } }
+      else p.boostHold = 0;
+      updatePlayerAim(dt);
+      slitherMove(p, dt);
+      arenaEatCheck(p);
+      arenaOrbCheck(p);
+      if(Math.hypot(p.x,p.y) > arenaBoundsR()){ killSnake(p); return; }
+      if(selfCollide(p)){ killSnake(p); return; }
+      if(segCollideHead(p, arenaSegPts)){ killSnake(p); return; }
+    }
+  }
+  /* AI */
+  for(const a of aiSnakes){
+    if(a.static) continue;              /* 静态蛇（装饰/测试确定性场景） */
+    if(!a.alive){
+      a.respawnIn -= dt;
+      if(a.respawnIn<=0) respawnAI(a);
+      continue;
+    }
+    updateAIBrain(a, dt);
+    slitherMove(a, dt);
+    arenaEatCheck(a);
+    arenaOrbCheck(a);
+    if(Math.hypot(a.x,a.y) > arenaBoundsR()){ killSnake(a); continue; }
+    if(selfCollide(a)){ killSnake(a); continue; }
+    if(segCollideHead(a, arenaSegPts)){ killSnake(a); continue; }
+  }
+  /* 能量球计时消失 */
+  for(let i=arenaOrbs.length-1;i>=0;i--){
+    arenaOrbs[i].life -= dt;
+    if(arenaOrbs[i].life<=0) arenaOrbs.splice(i,1);
+  }
+  /* 榜单更新（每 0.25s） */
+  if(arenaTime - arenaHudTimer >= 0.25){ arenaHudTimer = arenaTime; renderArenaHud(); }
+}
+
+function startArena(){
+  arenaMode = true;
+  arenaTime = 0; arenaHudTimer = 0;
+  worldFoods = []; arenaOrbs = [];
+  playerSnake = newSlither({
+    id:'player', isPlayer:true, name:'你',
+    x:-14, y:-8, angle:0, speed:5.4, boostMult:1.5, turnRate:2.5, len:4,
+    headCol:'#d97b1f', bodyCol:'#ffc06a', darkCol:'#b26014', hue:null,
+  });
+  aiSnakes = [];
+  const AI_COLORS = [
+    ['#3b9edf','#9fd4f5','#1f5f9e'], ['#d3541a','#ff9a5c','#8f3a10'],
+    ['#4cb85c','#a8e6a8','#2a7a3c'], ['#a855d8','#d9a8f0','#6a2a9e'],
+    ['#f0a6c0','#ffd9e6','#a05074'], ['#d4a94e','#f5dfa8','#8a6a20'],
+    ['#5fd0c8','#b0f0ec','#2a8a84'], ['#ffd166','#fff0b8','#b08a20'],
+    ['#8f7aa8','#cfc0e0','#5a4a78'], ['#e8743a','#ffc0a0','#9e4a1a'],
+  ];
+  for(let i=0;i<ARENA_AI_COUNT;i++){
+    const ang = Math.random()*Math.PI*2, r = arenaBoundsR()*0.75;
+    const c = AI_COLORS[i%AI_COLORS.length];
+    aiSnakes.push(newSlither({
+      id:'ai'+i, name:'AI-'+(i+1),
+      x:Math.cos(ang)*r, y:Math.sin(ang)*r,
+      angle:Math.atan2(-Math.sin(ang), -Math.cos(ang)),
+      speed:4.0+Math.random()*1.8, boostMult:1.4, turnRate:1.7+Math.random()*0.9,
+      len:3+(Math.random()*4)|0,
+      headCol:c[0], bodyCol:c[1], darkCol:c[2],
+    }));
+  }
+  arenaRefillFoods();
+  if(use2D) initArena2D();
+  else {
+    /* 隐藏经典模式对象，显示竞技场 */
+    if(arenaGroup) arenaGroup.visible = false;
+    segMeshes.forEach(m=>{ m.visible=false; if(m.userData.band) m.userData.band.visible=false; });
+    if(headGroup) headGroup.visible = false;
+    if(foodGroup) foodGroup.visible = false;
+    if(bonusGroup) bonusGroup.visible = false;
+    buildArenaArena();
+    arenaRaycaster = new THREE.Raycaster();
+  }
+  uiEnterArena();
+}
+
+function arenaModeOver(reason){
+  if(state !== STATE.PLAY) return;
+  computeRanking();
+  const rank = arenaRankCache.findIndex(s=>s && s.isPlayer) + 1;
+  if(typeof uiArenaOver==='function') uiArenaOver(reason, playerSnake.len, playerSnake.score, rank, arenaRankCache.length);
+}
+/* ---- 竞技模式 UI ---- */
+function uiEnterArena(){
+  hideAllScreens();
+  $('hud').classList.add('hidden');
+  $('arena-hud').classList.remove('hidden');
+  state = STATE.PLAY;
+  renderArenaHud();
+  $('pause-sub').textContent = '竞技模式 · 长度 ' + (playerSnake?playerSnake.len:0);
+  if(typeof sfxClick==='function') sfxClick();
+}
+function renderArenaHud(){
+  if(!arenaMode) return;
+  const list = computeRanking();
+  const el = $('arena-rank-list'); if(!el || !playerSnake) return;
+  const top = list.slice(0, 6);
+  el.innerHTML = top.map((s,i)=>{
+    const me = s.isPlayer;
+    return '<div class="'+(me?'me':'')+'"><span>'+(me?'★ ':((i+1)+'. '))+s.name+'</span><span>'+s.len+'</span></div>';
+  }).join('');
+  const lenEl=$('arena-len'), scEl=$('arena-score');
+  if(lenEl) lenEl.textContent = playerSnake.len;
+  if(scEl) scEl.textContent = playerSnake.score;
+}
+function uiArenaOver(reason, len, score, rank, total){
+  $('arena-hud').classList.add('hidden');
+  $('hud').classList.add('hidden');
+  $('arena-over-title').textContent = reason;
+  $('arena-over-len').textContent = len;
+  $('arena-over-score').textContent = score;
+  $('arena-over-rank').textContent = rank + ' / ' + total;
+  showScreen('screen-arena-over');
+  state = STATE.OVER;
+  if(typeof sfxDeath==='function') sfxDeath();
+}
+function arenaQuit(){
+  arenaMode = false;
+  arenaHudTimer = 0;
+  $('arena-hud').classList.add('hidden');
+  if(arenaGroupArena && scene){ scene.remove(arenaGroupArena); arenaGroupArena = null; }
+  if(!use2D && arenaGroup) arenaGroup.visible = true;
+  playerSnake = null; aiSnakes = []; worldFoods = []; arenaOrbs = [];
+}
+
+/* 供测试/调试暴露的句柄 */
+function arenaDebugState(){
+  return {
+    playerLen: playerSnake?playerSnake.len:0,
+    playerScore: playerSnake?playerSnake.score:0,
+    playerAlive: playerSnake?playerSnake.alive:false,
+    aiAlive: aiSnakes.filter(a=>a.alive).length,
+    foods: worldFoods.length, orbs: arenaOrbs.length,
+    state, arenaMode,
+  };
+}
+
+
 const cv3d = document.getElementById('cv3d');
 let renderer=null, scene=null, camera=null, skyMesh=null;
 let arenaGroup=null;          // 当前关卡的 3D 对象组（地板/网格/墙/障碍/食物/蛇）
@@ -1484,6 +2007,12 @@ function renderFrame(){
 function update3D(t, dt){
   if(!scene) return;
   perfSample(dt);
+  if(arenaMode){
+    if(state===STATE.PLAY || state===STATE.PAUSE) updateArena3D(t, dt);
+    else { updateBursts(dt); updateDust(t); updateOrbs(t); arenaCamera(t); }
+    renderFrame();
+    return;
+  }
   if(state===STATE.PLAY || state===STATE.PAUSE){
     updateSnake3D(t, dt);
     updateFood3D(t, dt);
@@ -1509,6 +2038,231 @@ function updateMenu3D(t, dt){
   updateOrbs(t);
   updateCamera(t, dt);
   renderFrame();
+}
+
+/* ============================================================
+ * [二·A] 竞技模式渲染层（V2）：圆形竞技场 + 实例化蛇/食物/能量球
+ * ============================================================ */
+let arenaGroupArena = null;          /* 竞技场装饰组 */
+let playerBodyInst = null, playerHeadGroup = null;
+let aiBodyInsts = [], aiHeadGroups = [];
+let foodInst = null, foodHaloInst = null, orbInst = null;
+const ARENA_SEG_GEO = new THREE.SphereGeometry(0.5, 16, 12);
+const ARENA_FOOD_GEO = new THREE.SphereGeometry(0.55, 14, 10);
+const ARENA_ORB_GEO = new THREE.SphereGeometry(0.55, 12, 10);
+const ARENA_MAX_SEG = 72;
+
+function disposeArenaGroupArena(){
+  if(!arenaGroupArena) return;
+  scene.remove(arenaGroupArena);
+  arenaGroupArena.traverse(o=>{
+    if(o.geometry && o.geometry !== ARENA_SEG_GEO && o.geometry !== ARENA_FOOD_GEO && o.geometry !== ARENA_ORB_GEO) o.geometry.dispose();
+    if(o.material && !Array.isArray(o.material)) o.material.dispose();
+  });
+  arenaGroupArena = null;
+}
+function buildArenaArena(){
+  disposeArenaGroupArena();
+  arenaGroupArena = new THREE.Group();
+  scene.add(arenaGroupArena);
+  /* 圆形米白地板 */
+  const floorMat = new THREE.MeshStandardMaterial({color:0xe8dfc6, roughness:0.3, metalness:0.25, envMapIntensity:1.4});
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(ARENA_R, 72), floorMat);
+  disc.rotation.x = -Math.PI/2; disc.receiveShadow = true;
+  arenaGroupArena.add(disc);
+  /* 金色圆环边界线 */
+  const ringMat = new THREE.MeshBasicMaterial({color:0xd9b25a, transparent:true, opacity:0.9});
+  const ring = new THREE.Mesh(new THREE.RingGeometry(ARENA_R-0.16, ARENA_R-0.02, 96), ringMat);
+  ring.rotation.x = -Math.PI/2; ring.position.y = 0.02;
+  arenaGroupArena.add(ring);
+  /* 外圈发光柱（边界警示） */
+  const pillarMat = new THREE.MeshStandardMaterial({color:0x1f3f7a, emissive:0x4f9de0, emissiveIntensity:1.1, roughness:0.3});
+  const PG = new THREE.CylinderGeometry(0.34, 0.34, 2.4, 8);
+  for(let i=0;i<24;i++){
+    const a = i/24*Math.PI*2;
+    const m = new THREE.Mesh(PG, pillarMat);
+    m.position.set(Math.cos(a)*ARENA_R, 1.2, Math.sin(a)*ARENA_R);
+    m.rotation.z = Math.PI/2 - a;
+    arenaGroupArena.add(m);
+  }
+  /* 中心金色小环装饰 */
+  const cRing = new THREE.Mesh(new THREE.RingGeometry(2.6, 2.75, 48), ringMat);
+  cRing.rotation.x = -Math.PI/2; cRing.position.y = 0.015;
+  arenaGroupArena.add(cRing);
+  /* ---- 蛇身实例池 ---- */
+  const segMat = new THREE.MeshStandardMaterial({color:0xffffff, roughness:0.22, metalness:0.35, envMapIntensity:1.3});
+  playerBodyInst = new THREE.InstancedMesh(ARENA_SEG_GEO, segMat, ARENA_MAX_SEG);
+  playerBodyInst.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  playerBodyInst.count = 0;
+  playerBodyInst.castShadow = true;
+  arenaGroupArena.add(playerBodyInst);
+  aiBodyInsts = [];
+  aiHeadGroups = [];
+  for(let i=0;i<ARENA_AI_COUNT;i++){
+    const im = new THREE.InstancedMesh(ARENA_SEG_GEO, segMat.clone(), ARENA_MAX_SEG);
+    im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); im.count = 0; im.castShadow = true;
+    arenaGroupArena.add(im); aiBodyInsts.push(im);
+  }
+  /* 玩家蛇头（完整造型） */
+  playerHeadGroup = buildPlayerHeadGroup();
+  arenaGroupArena.add(playerHeadGroup);
+  /* AI 蛇头（简化：球 + 双眼） */
+  for(let i=0;i<ARENA_AI_COUNT;i++){
+    const g = new THREE.Group();
+    const h = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 12), new THREE.MeshStandardMaterial({color:0xffffff, roughness:0.2, metalness:0.3}));
+    h.castShadow = true; g.add(h);
+    const eyeGeo = new THREE.SphereGeometry(0.15, 10, 8);
+    [-1,1].forEach(s=>{
+      const e = new THREE.Mesh(eyeGeo, new THREE.MeshBasicMaterial({color:0xffffff}));
+      e.position.set(0.3*s, 0.12, 0.34); g.add(e);
+      const p = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), new THREE.MeshBasicMaterial({color:0x101418}));
+      p.position.set(0.3*s, 0.14, 0.44); g.add(p);
+    });
+    g.visible = false; arenaGroupArena.add(g); aiHeadGroups.push(g);
+  }
+  /* 食物实例池 */
+  const foodMat = new THREE.MeshStandardMaterial({color:0xffffff, emissive:0xffd76a, emissiveIntensity:0.5, roughness:0.4});
+  foodInst = new THREE.InstancedMesh(ARENA_FOOD_GEO, foodMat, ARENA_MAX_FOOD);
+  foodInst.instanceMatrix.setUsage(THREE.DynamicDrawUsage); foodInst.count = 0;
+  arenaGroupArena.add(foodInst);
+  foodHaloInst = new THREE.InstancedMesh(new THREE.SphereGeometry(0.95, 12, 10),
+    new THREE.MeshBasicMaterial({color:0xfff3d0, transparent:true, opacity:0.16, blending:THREE.AdditiveBlending, depthWrite:false}), ARENA_MAX_FOOD);
+  foodHaloInst.instanceMatrix.setUsage(THREE.DynamicDrawUsage); foodHaloInst.count = 0;
+  arenaGroupArena.add(foodHaloInst);
+  /* 能量球实例池 */
+  orbInst = new THREE.InstancedMesh(ARENA_ORB_GEO,
+    new THREE.MeshStandardMaterial({color:0xffffff, emissive:0xffd166, emissiveIntensity:0.8, roughness:0.3}), 160);
+  orbInst.instanceMatrix.setUsage(THREE.DynamicDrawUsage); orbInst.count = 0;
+  orbInst.castShadow = false;
+  arenaGroupArena.add(orbInst);
+}
+/* 玩家蛇头造型（复用经典头部结构：吻/眼/舌/鼻孔） */
+function buildPlayerHeadGroup(){
+  const skin = SKINS[save.skin] || SKINS.default;
+  const g = new THREE.Group();
+  const headMat = new THREE.MeshStandardMaterial({color:skin.head, roughness:0.15, metalness:0.5, envMapIntensity:1.6});
+  headMat.emissive = new THREE.Color(skin.head).multiplyScalar(0.2);
+  const hb = new THREE.Mesh(new THREE.SphereGeometry(0.62, 20, 16), headMat);
+  hb.scale.set(1.18, 0.92, 1.32); hb.castShadow = true; g.add(hb);
+  const snout = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 10), headMat);
+  snout.scale.set(0.95, 0.65, 1.15); snout.position.set(0, 0.02, 0.6); g.add(snout);
+  const eyeGeo = new THREE.SphereGeometry(0.2, 12, 10);
+  [-1,1].forEach(s=>{
+    const eg = new THREE.Group();
+    const eye = new THREE.Mesh(eyeGeo, new THREE.MeshStandardMaterial({color:0xffffff, roughness:0.08}));
+    eg.add(eye);
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), new THREE.MeshStandardMaterial({color:0x101418, roughness:0.1}));
+    pupil.position.set(0, 0.02, 0.12); eg.add(pupil);
+    eg.position.set(0.36*s, 0.16, 0.3); eg.rotation.z = 0.12*s;
+    g.add(eg);
+  });
+  const tongueMat = new THREE.MeshStandardMaterial({color:0xff4b5c, roughness:0.3, emissive:0xff2a3e, emissiveIntensity:0.5});
+  const tongue = new THREE.Group();
+  const t1 = new THREE.Mesh(new THREE.BoxGeometry(0.1,0.034,0.4), tongueMat);
+  t1.position.set(0, -0.08, 0.8); tongue.add(t1);
+  const t2 = new THREE.Mesh(new THREE.BoxGeometry(0.07,0.027,0.16), tongueMat);
+  t2.position.set(-0.09,-0.08,1.0); tongue.add(t2);
+  const t3 = new THREE.Mesh(new THREE.BoxGeometry(0.07,0.027,0.16), tongueMat);
+  t3.position.set(0.09,-0.08,1.0); tongue.add(t3);
+  g.add(tongue);
+  return g;
+}
+const _imM = new THREE.Matrix4(), _imQ = new THREE.Quaternion(), _imS = new THREE.Vector3();
+function setInstAt(im, i, x, y, z, scale, colorHex){
+  _imQ.set(0,0,0,1);
+  _imS.set(scale, scale, scale);
+  _imM.compose(new THREE.Vector3(x,y,z), _imQ, _imS);
+  im.setMatrixAt(i, _imM);
+  if(colorHex !== undefined && im.instanceColor){ im.setColorAt(i, new THREE.Color(colorHex)); }
+}
+function renderSnakeInstances(im, headGroup, s, t){
+  /* 身体段 */
+  const N = Math.min(ARENA_MAX_SEG, s.len);
+  im.count = 0;
+  const step = Math.max(1, Math.floor(s.len/40));
+  let k = 0;
+  for(let i=0;i<s.len;i+=step){
+    if(k >= ARENA_MAX_SEG) break;
+    const p = slitherBodyPoint(s, i);
+    let scale = 1;
+    if(i===s.len-1 && s.growthFlash>0){ scale = 1 + s.growthFlash*0.5; }
+    setInstAt(im, k, p.x, 0.5 + Math.sin(t*6+i*0.7)*0.012, p.y, scale*1.05, s.bodyCol);
+    k++;
+  }
+  im.count = k;
+  if(im.instanceColor) im.instanceColor.needsUpdate = true;
+  im.instanceMatrix.needsUpdate = true;
+  /* 头部 */
+  if(headGroup){
+    headGroup.position.set(s.x, 0.62 + Math.sin(t*6.5)*0.04, s.y);
+    headGroup.lookAt(s.x + Math.cos(s.angle)*3, headGroup.position.y, s.y + Math.sin(s.angle)*3);
+    headGroup.visible = true;
+    const tongue = headGroup.children.find(c=>c.children && c.children.length>=3 && c.children[0].geometry && c.children[0].geometry.type==='BoxGeometry');
+    if(tongue){
+      const flick = 0.4 + Math.max(0, Math.sin(t*2.6))*0.7;
+      tongue.scale.z = 0.8 + flick*0.4;
+      tongue.position.z = 0.72 + flick*0.12;
+    }
+  }
+}
+function updateArena3D(t, dt){
+  if(!scene) return;
+  if(playerSnake){
+    if(playerSnake.alive){
+      renderSnakeInstances(playerBodyInst, playerHeadGroup, playerSnake, t);
+    } else {
+      if(playerBodyInst) playerBodyInst.count = 0;
+      if(playerBodyInst) playerBodyInst.instanceMatrix.needsUpdate = true;
+      if(playerHeadGroup) playerHeadGroup.visible = false;
+    }
+  }
+  for(let i=0;i<aiSnakes.length;i++){
+    const a = aiSnakes[i];
+    if(a && a.alive){
+      renderSnakeInstances(aiBodyInsts[i], aiHeadGroups[i], a, t);
+      if(aiHeadGroups[i]){ aiHeadGroups[i].visible = true; }
+    } else if(aiBodyInsts[i]) {
+      aiBodyInsts[i].count = 0; aiBodyInsts[i].instanceMatrix.needsUpdate = true;
+      if(aiHeadGroups[i]) aiHeadGroups[i].visible = false;
+    }
+  }
+  /* 食物 */
+  if(foodInst && foodHaloInst){
+    const n = Math.min(worldFoods.length, ARENA_MAX_FOOD);
+    for(let i=0;i<n;i++){
+      const f = worldFoods[i];
+      const sc = 1 + Math.sin(t*4 + i*0.8)*0.12;
+      setInstAt(foodInst, i, f.x, 0.55, f.y, sc, f.gold?0xffd76a:(f.frost?0x8fd8ff:0xffb84d));
+      setInstAt(foodHaloInst, i, f.x, 0.55, f.y, sc*(f.gold?1.5:1.1), 0xfff3d0);
+    }
+    foodInst.count = n; foodInst.instanceMatrix.needsUpdate = true;
+    if(foodInst.instanceColor) foodInst.instanceColor.needsUpdate = true;
+    foodHaloInst.count = n; foodHaloInst.instanceMatrix.needsUpdate = true;
+  }
+  /* 能量球 */
+  if(orbInst){
+    const n = Math.min(arenaOrbs.length, 160);
+    for(let i=0;i<n;i++){
+      const o = arenaOrbs[i];
+      setInstAt(orbInst, i, o.x, 0.4, o.y, o.r*1.1, o.value>=3?0xffe28a:0xffd166);
+    }
+    orbInst.count = n; orbInst.instanceMatrix.needsUpdate = true;
+    if(orbInst.instanceColor) orbInst.instanceColor.needsUpdate = true;
+  }
+  /* 竞技场相机 */
+  arenaCamera(t);
+  /* 尘埃与光球装饰（复用经典装饰） */
+  updateDust(t);
+  updateOrbs(t);
+  updateBursts(dt);
+}
+function arenaCamera(t){
+  const dist = ARENA_R*2.18;
+  const phi = 1.08, az = Math.PI*0.25 + Math.sin(t*0.03)*(prefersReduced?0:0.12);
+  camPos.set(dist*Math.cos(phi)*Math.cos(az), dist*Math.sin(phi), dist*Math.cos(phi)*Math.sin(az));
+  camera.position.copy(camPos);
+  camLook.set(0, 0, 0);
+  camera.lookAt(camLook);
 }
 
 /* ============================================================
@@ -1720,14 +2474,87 @@ function drawPlay2D(t){
 function update2DPlay(t, dt){
   if(shakeAmp>0) shakeAmp = Math.max(0, shakeAmp - dt*1.6);
   updateBurst2D(dt);
+  if(arenaMode){ drawArena2D(t); return; }
   drawPlay2D(t);
+}
+/* ---- 竞技模式 2D 渲染 ---- */
+let arena2d = {scale2:10, cx:0, cy:0};
+function initArena2D(){
+  const w = cv3d.width = window.innerWidth, h = cv3d.height = window.innerHeight;
+  arena2d.scale2 = Math.min(w, h) / (ARENA_R*2.35);
+  arena2d.cx = w/2; arena2d.cy = h/2;
+}
+function arena2dXY(x, y){ return [arena2d.cx + x*arena2d.scale2, arena2d.cy + y*arena2d.scale2]; }
+function drawArena2D(t){
+  const w = cv3d.width, h = cv3d.height;
+  ctx2d.save();
+  /* 青空背景 */
+  const g2d = ctx2d.createLinearGradient(0,0,0,h);
+  g2d.addColorStop(0,'#5496d8'); g2d.addColorStop(0.6,'#8fc0ec'); g2d.addColorStop(1,'#eaf4ff');
+  ctx2d.fillStyle = g2d; ctx2d.fillRect(0,0,w,h);
+  /* 圆形竞技场地面 */
+  const Rpx = ARENA_R*arena2d.scale2;
+  ctx2d.fillStyle = 'rgba(240,232,216,.92)';
+  ctx2d.beginPath(); ctx2d.arc(arena2d.cx, arena2d.cy, Rpx, 0, Math.PI*2); ctx2d.fill();
+  ctx2d.strokeStyle = 'rgba(217,178,90,.85)'; ctx2d.lineWidth = 4;
+  ctx2d.beginPath(); ctx2d.arc(arena2d.cx, arena2d.cy, Rpx-2, 0, Math.PI*2); ctx2d.stroke();
+  /* 网格 */
+  ctx2d.strokeStyle = 'rgba(217,178,90,.25)'; ctx2d.lineWidth = 1;
+  for(let gx=-ARENA_R; gx<=ARENA_R; gx+=4){
+    const [x1,y1]=arena2dXY(gx,-ARENA_R), [x2,y2]=arena2dXY(gx,ARENA_R);
+    ctx2d.beginPath(); ctx2d.moveTo(x1,y1); ctx2d.lineTo(x2,y2); ctx2d.stroke();
+  }
+  for(let gy=-ARENA_R; gy<=ARENA_R; gy+=4){
+    const [x1,y1]=arena2dXY(-ARENA_R,gy), [x2,y2]=arena2dXY(ARENA_R,gy);
+    ctx2d.beginPath(); ctx2d.moveTo(x1,y1); ctx2d.lineTo(x2,y2); ctx2d.stroke();
+  }
+  /* 能量球 */
+  for(const o of arenaOrbs){
+    const [x,y]=arena2dXY(o.x,o.y);
+    ctx2d.fillStyle = o.value>=3 ? 'rgba(255,226,138,.95)' : 'rgba(255,209,102,.95)';
+    ctx2d.beginPath(); ctx2d.arc(x,y,o.r*arena2d.scale2,0,Math.PI*2); ctx2d.fill();
+  }
+  /* 食物 */
+  for(let i=0;i<worldFoods.length;i++){
+    const f = worldFoods[i];
+    const [x,y]=arena2dXY(f.x,f.y);
+    const rr = f.r*arena2d.scale2*(1+Math.sin(t*4+i*0.8)*0.1);
+    ctx2d.fillStyle = f.gold? '#ffd76a' : (f.frost? '#8fd8ff' : '#ffb84d');
+    ctx2d.beginPath(); ctx2d.arc(x,y,rr,0,Math.PI*2); ctx2d.fill();
+    ctx2d.fillStyle = 'rgba(255,255,255,.5)';
+    ctx2d.beginPath(); ctx2d.arc(x-rr*0.25,y-rr*0.25,rr*0.32,0,Math.PI*2); ctx2d.fill();
+  }
+  /* 蛇（含玩家 + AI） */
+  const all = [playerSnake, ...aiSnakes].filter(s=>s && s.alive);
+  for(const s of all){
+    const rr = 0.52*arena2d.scale2;
+    for(let i=s.len-1;i>=1;i--){
+      const p = slitherBodyPoint(s, i);
+      const [x,y]=arena2dXY(p.x,p.y);
+      const grow = (s.growthFlash>0 && i>=s.len-2) ? 1+s.growthFlash*0.4 : 1;
+      ctx2d.fillStyle = s.isPlayer? s.darkCol : '#2c3e5f';
+      ctx2d.beginPath(); ctx2d.arc(x,y,rr*grow,0,Math.PI*2); ctx2d.fill();
+      ctx2d.fillStyle = s.bodyCol;
+      ctx2d.beginPath(); ctx2d.arc(x,y,(rr-2)*grow,0,Math.PI*2); ctx2d.fill();
+    }
+    const [hx,hy]=arena2dXY(s.x,s.y);
+    ctx2d.fillStyle = s.headCol;
+    ctx2d.beginPath(); ctx2d.arc(hx,hy,rr*1.25,0,Math.PI*2); ctx2d.fill();
+    /* 朝向双眼 */
+    const ex=Math.cos(s.angle)*rr*0.35, ey=Math.sin(s.angle)*rr*0.35;
+    ctx2d.fillStyle='#fff';
+    [[-0.4,1],[0.4,1]].forEach(off=>{
+      ctx2d.beginPath(); ctx2d.arc(hx+ex+Math.cos(s.angle+off[0])*rr*0.5, hy+ey+Math.sin(s.angle+off[0])*rr*0.5, rr*0.24, 0, Math.PI*2); ctx2d.fill();
+    });
+  }
+  drawBurst2D();
+  ctx2d.restore();
 }
 function update2DMenu(t, dt){
   if(!ctx2d) return;
   drawArenaBase2D();
   const w=cv3d.width, h=cv3d.height;
-  for(let i=0;i<6;i++){
-    const cx=fit2d.ox + (gw*0.16 + i*0.136*gw) * fit2d.scale;
+  for(let i=0;i<6;i++){    const cx=fit2d.ox + (gw*0.16 + i*0.136*gw) * fit2d.scale;
     const cy=fit2d.oy + (gh*0.32 + Math.sin(t*0.8+i)*0.1*gh) * fit2d.scale;
     const col=['#e6c35c','#ff6b6b','#6fc3e0'][i%3];
     const r=7+Math.sin(t*2+i)*3;
@@ -1877,7 +2704,7 @@ function toggleMute(){ setMuted(!muted); sfxClick(); }
  * [三] DOM 界面层（HUD / 菜单 / 选关 / 商店 / 暂停 / 过关 / 结束 / 触屏）
  * ============================================================ */
 const $ = id => document.getElementById(id);
-const SCREENS = ['screen-menu','screen-select','screen-shop','screen-pause','screen-win','screen-over'];
+const SCREENS = ['screen-menu','screen-select','screen-shop','screen-pause','screen-win','screen-over','screen-arena-over'];
 function showScreen(name){
   SCREENS.forEach(id=>{ const el=$(id); el.classList.add('hidden'); el.classList.remove('active'); });
   const el = $(name);
@@ -1905,7 +2732,10 @@ function uiFlyScore(worldPos, text, color){
   if(typeof color==='number') col = '#'+color.toString(16).padStart(6,'0');
   else if(color instanceof THREE.Color) col = '#'+color.getHexString();
   let x, y;
-  if(use2D){
+  if(use2D && arenaMode){
+    x = arena2d.cx + worldPos.x*arena2d.scale2;
+    y = arena2d.cy + worldPos.z*arena2d.scale2;
+  } else if(use2D){
     const gx = worldPos.x + (gw-1)/2, gy = worldPos.z + (gh-1)/2;
     const [px,py] = px2(gx, gy);
     x=px + fit2d.scale/2; y=py;
@@ -2115,6 +2945,7 @@ function showPause(){
 function pauseGame(){
   if(state!==STATE.PLAY) return;
   state=STATE.PAUSE; if(typeof sfxPause==='function') sfxPause();
+  if(arenaMode){ $('pause-sub').textContent='竞技模式 · 长度 '+(playerSnake?playerSnake.len:0)+' · 得分 '+(playerSnake?playerSnake.score:0); }
   showPause();
 }
 function resumeGame(){
@@ -2122,12 +2953,13 @@ function resumeGame(){
   hideAllScreens();
   state=STATE.PLAY;
   if(typeof sfxClick==='function') sfxClick();
+  if(arenaMode){ $('arena-hud').classList.remove('hidden'); return; }
   hudShow(true);
 }
 function hideAllScreens(){ SCREENS.forEach(id=>{ $(id).classList.add('hidden'); $(id).classList.remove('active'); }); }
-function goSelect(){ state=STATE.SELECT; renderLevelSelect(); hudShow(false); showScreen('screen-select'); }
-function goMenu(){ state=STATE.MENU; renderMenu(); hudShow(false); showScreen('screen-menu'); }
-function goShop(){ state=STATE.SHOP; renderShop(); hudShow(false); showScreen('screen-shop'); }
+function goSelect(){ if(arenaMode) arenaQuit(); state=STATE.SELECT; renderLevelSelect(); hudShow(false); showScreen('screen-select'); }
+function goMenu(){ if(arenaMode) arenaQuit(); state=STATE.MENU; renderMenu(); hudShow(false); showScreen('screen-menu'); }
+function goShop(){ if(arenaMode) arenaQuit(); state=STATE.SHOP; renderShop(); hudShow(false); showScreen('screen-shop'); }
 function goPlayScreen(){ hideAllScreens(); state=STATE.PLAY; hudShow(true); }
 
 /* ---- 键盘 ---- */
@@ -2163,6 +2995,12 @@ document.addEventListener('keydown', (e)=>{
     else if(shopTab==='length' && (k==='b'||k==='B')) buyLengthPack();
 
   } else if(state===STATE.PLAY){
+    if(arenaMode){
+      if(k==='Escape'||k==='p'||k==='P') pauseGame();
+      else if(k===' ') arenaKeys['Space']=true;
+      else if(k==='r'||k==='R') startArena();
+      return;
+    }
     if(k==='Escape'||k==='p'||k==='P') pauseGame();
     else if(k==='r'||k==='R') startLevel(currentLevelNumber);
     else if(k==='ArrowUp'||k==='w') setDir(snake,[0,-1]);
@@ -2171,6 +3009,7 @@ document.addEventListener('keydown', (e)=>{
     else if(k==='ArrowRight'||k==='d') setDir(snake,[1,0]);
 
   } else if(state===STATE.PAUSE){
+    if(arenaMode){ if(k==='Escape'||k==='p'||k==='P'||k==='Enter') resumeGame(); return; }
     if(k==='Escape'||k==='p'||k==='P'||k==='Enter') resumeGame();
     else if(k==='r'||k==='R') startLevel(currentLevelNumber);
 
@@ -2179,17 +3018,47 @@ document.addEventListener('keydown', (e)=>{
     else if(k==='Escape') goSelect();
 
   } else if(state===STATE.OVER){
+    if(arenaMode){
+      if(k==='Enter') startArena();
+      else if(k==='Escape'){ arenaQuit(); goMenu(); }
+      return;
+    }
     if(k==='Enter') startLevel(isEndless? ENDLESS_START : currentLevelNumber);
     else if(k==='Escape') goSelect();
   }
 });
-
-/* ---- 触屏：滑动转向 + 方向键 ---- */
+/* 竞技模式：空格松开 / 鼠标 / 触屏 */
+document.addEventListener('keyup', (e)=>{ if(e.key===' ') arenaKeys['Space']=false; });
+let arenaKeys = {Space:false};
 let touchStart=null;
-cv3d.addEventListener('touchstart', (e)=>{ if(state!==STATE.PLAY) return;
-  const t=e.touches[0]; touchStart={x:t.clientX,y:t.clientY}; }, {passive:true});
+function setArenaPointer(cx, cy){
+  if(use2D){ arenaMouse.x=cx; arenaMouse.y=cy; }
+  else {
+    arenaMouse.ndc.x = (cx/window.innerWidth)*2-1;
+    arenaMouse.ndc.y = -(cy/window.innerHeight)*2+1;
+  }
+  arenaMouse.has = true;
+}
+cv3d.addEventListener('mousemove', (e)=>{
+  if(!arenaMode || state!==STATE.PLAY) return;
+  setArenaPointer(e.clientX, e.clientY);
+});
+cv3d.addEventListener('pointerdown', (e)=>{
+  unlockAudio();
+  if(!arenaMode || state!==STATE.PLAY) return;
+  if(e.button===0) arenaMouseDown = true;
+});
+window.addEventListener('pointerup', ()=>{ arenaMouseDown=false; });
+/* 触屏：竞技模式按住跟随手指（转向），双指/长按不加速 */
+cv3d.addEventListener('touchstart', (e)=>{
+  if(state!==STATE.PLAY) return;
+  if(arenaMode){ const t=e.touches[0]; setArenaPointer(t.clientX,t.clientY); arenaMouseDown=true; return; }
+  const t=e.touches[0]; touchStart={x:t.clientX,y:t.clientY};
+}, {passive:true});
 cv3d.addEventListener('touchmove', (e)=>{
-  if(state!==STATE.PLAY || !touchStart) return;
+  if(state!==STATE.PLAY) return;
+  if(arenaMode){ const t=e.touches[0]; setArenaPointer(t.clientX,t.clientY); return; }
+  if(!touchStart) return;
   e.preventDefault();
   const t=e.touches[0];
   const dx=t.clientX-touchStart.x, dy=t.clientY-touchStart.y;
@@ -2198,10 +3067,10 @@ cv3d.addEventListener('touchmove', (e)=>{
   else setDir(snake, dy>0?[0,1]:[0,-1]);
   touchStart={x:t.clientX,y:t.clientY};
 }, {passive:false});
-cv3d.addEventListener('touchend', ()=>{ touchStart=null; });
+cv3d.addEventListener('touchend', (e)=>{ if(arenaMode){ arenaMouseDown=false; return; } touchStart=null; });
 const DPAD_DIRS={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
 Object.keys(DPAD_DIRS).forEach(d=>{
-  $('dpad-'+d).addEventListener('pointerdown', (e)=>{ e.preventDefault(); if(state===STATE.PLAY) setDir(snake, DPAD_DIRS[d]); });
+  $('dpad-'+d).addEventListener('pointerdown', (e)=>{ e.preventDefault(); if(state===STATE.PLAY && !arenaMode) setDir(snake, DPAD_DIRS[d]); });
 });
 
 /* ---- 自动暂停：切后台 ---- */
@@ -2222,7 +3091,12 @@ function uiEnterPlay(){
 function wireUI(){
   $('btn-menu-start').addEventListener('click', goSelect);
   $('btn-menu-endless').addEventListener('click', ()=>startLevel(ENDLESS_START));
+  $('btn-menu-arena').addEventListener('click', ()=>{ arenaQuit(); startArena(); });
   $('btn-menu-shop').addEventListener('click', goShop);
+  $('btn-arena-pause').addEventListener('click', pauseGame);
+  $('btn-arena-mute').addEventListener('click', toggleMute);
+  $('btn-arena-retry').addEventListener('click', ()=>{ arenaQuit(); startArena(); });
+  $('btn-arena-back').addEventListener('click', ()=>{ arenaQuit(); goMenu(); });
   $('tab-skins').addEventListener('click', ()=>{ shopTab='skins'; renderShop(); });
   $('tab-length').addEventListener('click', ()=>{ shopTab='length'; renderShop(); });
   $('btn-pause').addEventListener('click', pauseGame);
@@ -2242,7 +3116,11 @@ function loop(now){
   const dt=Math.min(0.05,(now-lastTime)/1000);
   lastTime=now;
   const t=now/1000;
-  if(state===STATE.PLAY){ updatePlay(dt); hudUpdate(); if(use2D) update2DPlay(t,dt); else update3D(t,dt); }
+  if(arenaMode){
+    if(state===STATE.PLAY){ updateArenaPlay(dt); if(use2D) update2DPlay(t,dt); else update3D(t,dt); }
+    else if(state===STATE.PAUSE){ if(use2D) drawArena2D(t); else update3D(t,dt); }
+    else { if(use2D) drawArena2D(t); else update3D(t,dt); }
+  } else if(state===STATE.PLAY){ updatePlay(dt); hudUpdate(); if(use2D) update2DPlay(t,dt); else update3D(t,dt); }
   else if(state===STATE.PAUSE){ hudUpdate(); if(use2D) drawPlay2D(t); else update3D(t,dt); }
   else { if(use2D) update2DMenu(t,dt); else updateMenu3D(t,dt); }
   requestAnimationFrame(loop);
