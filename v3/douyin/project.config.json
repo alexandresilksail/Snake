@@ -1,0 +1,14 @@
+{
+  "appid": "tt0000000000000000",
+  "projectname": "SnakeV3",
+  "description": "星域蛇行 · 3D 单机贪吃蛇竞技（抖音小游戏适配版）",
+  "setting": {
+    "es6": true,
+    "minified": false,
+    "urlCheck": false,
+    "ignoreUploadUnusedFiles": true
+  },
+  "compileType": "game",
+  "miniprogramRoot": "",
+  "condition": {}
+}
