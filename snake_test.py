@@ -2,13 +2,31 @@
 """贪吃蛇 3D 升级版回归测试
 Part A: WebGL 3D 模式全功能（35 项）
 Part B: WebGL 禁用 → 2D 兼容模式（验证“点击没反应”修复，12 项）
-运行: python3 /tmp/snake_test3.py
+运行: python3 snake_test.py
 """
-import asyncio, sys
+import asyncio, os, sys
 from playwright.async_api import async_playwright
 
-HTML  = "file:///home/user/Doubao/chats/38446245978458882/snake_game_3d.html"
-CHROME = "/opt/vm/preinstall/ms-playwright/chromium-1169/chrome-linux/chrome"
+# 自动定位当前仓库的 snake_game_3d.html（与脚本同目录），不依赖其他机器的绝对路径
+_BASE = os.path.dirname(os.path.abspath(__file__))
+HTML  = "file://" + os.path.join(_BASE, "snake_game_3d.html")
+
+# 自动探测当前环境可用的 Playwright Chromium；找不到时回退 playwright 默认
+def _find_chromium():
+    cands = [
+        os.environ.get("PLAYWRIGHT_CHROMIUM_PATH", ""),
+        "/opt/vm/preinstall/ms-playwright/chromium-1169/chrome-linux/chrome",
+        "/opt/vm/preinstall/ms-playwright/chromium_headless_shell-1169/chrome-linux/headless_shell",
+        "/usr/bin/chromium", "/usr/bin/chromium-browser",
+        "/usr/bin/google-chrome", "/usr/bin/google-chrome-stable",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    ]
+    for c in cands:
+        if c and os.path.exists(c):
+            return c
+    return None
+
+CHROME = _find_chromium()
 GPU_ARGS = ["--use-gl=angle", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"]
 DISABLE_WEBGL = ["--disable-webgl"]
 
@@ -232,11 +250,14 @@ async def run_2d(browser):
     await ctx.close()
 
 async def main():
+    launch_kw = {"args": GPU_ARGS}
+    if CHROME: launch_kw["executable_path"] = CHROME
+    print("HTML:", HTML, "\nCHROME:", CHROME or "(playwright 默认)")
     async with async_playwright() as p:
-        browser = await p.chromium.launch(executable_path=CHROME, args=GPU_ARGS)
+        browser = await p.chromium.launch(**launch_kw)
         await run_3d(browser)
         await browser.close()
-        browser = await p.chromium.launch(executable_path=CHROME, args=GPU_ARGS + DISABLE_WEBGL)
+        browser = await p.chromium.launch(**{**launch_kw, "args": GPU_ARGS + DISABLE_WEBGL})
         await run_2d(browser)
         await browser.close()
     print("\n==== 结果 ====")

@@ -5,7 +5,22 @@ import sys, time, json, os
 from playwright.sync_api import sync_playwright
 
 HTML = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'snake_game_3d.html')
-CHROME = '/opt/vm/preinstall/ms-playwright/chromium-1169/chrome-linux/chrome'
+
+def _find_chromium():
+    cands = [
+        os.environ.get("PLAYWRIGHT_CHROMIUM_PATH", ""),
+        '/opt/vm/preinstall/ms-playwright/chromium-1169/chrome-linux/chrome',
+        '/opt/vm/preinstall/ms-playwright/chromium_headless_shell-1169/chrome-linux/headless_shell',
+        '/usr/bin/chromium', '/usr/bin/chromium-browser',
+        '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable',
+        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    ]
+    for c in cands:
+        if c and os.path.exists(c):
+            return c
+    return None
+
+CHROME = _find_chromium()
 GPU = ["--use-gl=angle", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"]
 PASS, FAIL = 0, 0
 errors = []
@@ -81,7 +96,9 @@ def run_test(page, name, fn):
 
 def main():
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True, executable_path=CHROME, args=GPU + ["--enable-precise-memory-info"])
+        launch_kw = dict(headless=True, args=GPU + ["--enable-precise-memory-info"])
+        if CHROME: launch_kw["executable_path"] = CHROME
+        browser = p.chromium.launch(**launch_kw)
         ctx = browser.new_context(viewport={'width':1280,'height':800})
         page = ctx.new_page()
         page_errors = []
