@@ -311,7 +311,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   const V3 = global.V3;
 
   function createMap(opts) {
-    const R = opts.radius || 42;         // 竞技场半径
+    const R = opts.radius || 72;         // 竞技场半径
     const innerR = R - 1.2;              // 可活动边界（防出界）
     const borderCount = 36;              // 边界装饰分段数
 
@@ -1048,7 +1048,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   const COLL = V3.Collision;
 
   function createWorld(opts) {
-    const map = V3.Map.createMap({ radius: opts.radius || 42 });
+    const map = V3.Map.createMap({ radius: opts.radius || 72 });
     const foods = V3.Food.createSystem(map, opts.rng);
     const rng = opts.rng || Math.random;
 
@@ -1282,9 +1282,12 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   const Adapter = V3.Adapter;
 
   /* ---------- 模块级共享几何/材质（一次创建，永久复用） ---------- */
-  const SEG_GEO = new THREE.SphereGeometry(0.5, 10, 8);
-  const HEAD_GEO = new THREE.SphereGeometry(0.6, 16, 12);
-  const EYE_GEO = new THREE.SphereGeometry(0.13, 8, 6);
+  const SEG_GEO = new THREE.SphereGeometry(0.5, 12, 10);
+  const HEAD_GEO = new THREE.SphereGeometry(0.6, 18, 14);
+  const SNOUT_GEO = new THREE.SphereGeometry(0.34, 12, 10);
+  const EYE_WHITE_GEO = new THREE.SphereGeometry(0.22, 10, 8);
+  const EYE_PUPIL_GEO = new THREE.SphereGeometry(0.115, 8, 6);
+  const TONGUE_GEO = new THREE.BoxGeometry(0.075, 0.028, 0.55);
   const CRYSTAL_GEO = new THREE.OctahedronGeometry(0.5, 0);
   const GOLD_GEO = (function () {
     const s = new THREE.Shape();
@@ -1321,28 +1324,28 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     const scene = new THREE.Scene();
     scene.background = makeSkyTexture();
 
-    const camera = new THREE.PerspectiveCamera(55, size.width / size.height, 0.1, 300);
-    camera.position.set(0, 26, 26);
+    const camera = new THREE.PerspectiveCamera(55, size.width / size.height, 0.1, 400);
+    camera.position.set(0, 38, 38);
     camera.lookAt(0, 0, 0);
 
     /* 灯光：主光 + 补光 + 环境（受控数量，不逐对象加灯） */
-    const hemi = new THREE.HemisphereLight(0xcfe8ff, 0xf6e3c2, 0.75);
+    const hemi = new THREE.HemisphereLight(0xcfe8ff, 0xf6e3c2, 0.9);
     scene.add(hemi);
-    const sun = new THREE.DirectionalLight(0xfff2d8, 1.15);
+    const sun = new THREE.DirectionalLight(0xfff2d8, 1.2);
     sun.position.set(18, 30, 14);
     sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024);
-    sun.shadow.camera.left = -60; sun.shadow.camera.right = 60;
-    sun.shadow.camera.top = 60; sun.shadow.camera.bottom = -60;
+    sun.shadow.camera.left = -100; sun.shadow.camera.right = 100;
+    sun.shadow.camera.top = 100; sun.shadow.camera.bottom = -100;
     scene.add(sun);
-    const rim = new THREE.DirectionalLight(0x6fc3ff, 0.45);
+    const rim = new THREE.DirectionalLight(0x6fc3ff, 0.5);
     rim.position.set(-14, 10, -18);
     scene.add(rim);
 
     /* ---------- 场地（原创：环形渐变 + 边界光带） ---------- */
-    const arenaR = 42;
+    const arenaR = 72;
     const ground = new THREE.Mesh(
-      new THREE.CircleGeometry(arenaR, 48),
+      new THREE.CircleGeometry(arenaR, 72),
       new THREE.MeshStandardMaterial({ map: makeGroundTexture(), roughness: 0.55, metalness: 0.08 })
     );
     ground.rotation.x = -Math.PI / 2;
@@ -1351,7 +1354,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
 
     /* 外缘深色环带（压出边界感） */
     const edge = new THREE.Mesh(
-      new THREE.RingGeometry(arenaR - 1.2, arenaR + 0.6, 48),
+      new THREE.RingGeometry(arenaR - 1.2, arenaR + 0.6, 72),
       new THREE.MeshStandardMaterial({ color: 0x2c4a6e, roughness: 0.4, metalness: 0.3, side: THREE.DoubleSide })
     );
     edge.rotation.x = -Math.PI / 2;
@@ -1360,18 +1363,18 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
 
     /* 发光边界光带（受控半透明环） */
     const glowRing = new THREE.Mesh(
-      new THREE.RingGeometry(arenaR - 0.55, arenaR - 0.28, 72),
+      new THREE.RingGeometry(arenaR - 0.55, arenaR - 0.28, 96),
       new THREE.MeshBasicMaterial({ color: 0x7fd8ff, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false })
     );
     glowRing.rotation.x = -Math.PI / 2;
     glowRing.position.y = 0.06;
     scene.add(glowRing);
 
-    /* 装饰：环绕场地的低多边形小晶柱（12 根，静态） */
+    /* 装饰：环绕场地的低多边形小晶柱（16 根，静态） */
     const decoMat = new THREE.MeshStandardMaterial({ color: 0x9fd4ff, roughness: 0.35, metalness: 0.2, emissive: 0x2a5a8a, emissiveIntensity: 0.35 });
     const decoGeo = new THREE.CylinderGeometry(0.22, 0.34, 1.6, 5);
-    for (let i = 0; i < 12; i++) {
-      const a = (i / 12) * Math.PI * 2 + 0.26;
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * Math.PI * 2 + 0.26;
       const d = arenaR - 0.9;
       const p = new THREE.Mesh(decoGeo, decoMat);
       p.position.set(Math.cos(a) * d, 0.8, Math.sin(a) * d);
@@ -1379,41 +1382,67 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       scene.add(p);
     }
 
-    /* ---------- 蛇身实例池 ---------- */
-    const segMat = new THREE.MeshStandardMaterial({ roughness: 0.28, metalness: 0.22, envMapIntensity: 0.9 });
+    /* ---------- 蛇身实例池（与蛇头同色、明亮球体） ---------- */
+    const segMat = new THREE.MeshLambertMaterial({ roughness: 0.35, emissive: 0xffffff, emissiveIntensity: 0.32 });
     const segInst = new THREE.InstancedMesh(SEG_GEO, segMat, TOTAL_SEGS);
     segInst.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     segInst.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(TOTAL_SEGS * 3), 3);
     segInst.castShadow = true;
     scene.add(segInst);
 
-    /* ---------- 蛇头（每蛇一个 Group） ---------- */
+    /* ---------- 蛇头（每蛇一个 Group：拉长头形 + 吻部 + 白眼黑瞳 + 蛇信） ---------- */
     const headGroups = new Map();
+    const tongueMat = new THREE.MeshBasicMaterial({ color: 0xff5a5a });
     function ensureHead(snake) {
       let g = headGroups.get(snake.id);
       if (g) return g;
       g = new THREE.Group();
-      const ball = new THREE.Mesh(HEAD_GEO, new THREE.MeshStandardMaterial({ color: snake.color, roughness: 0.3, metalness: 0.2 }));
-      ball.castShadow = true;
-      g.add(ball);
-      const eyeL = new THREE.Mesh(EYE_GEO, new THREE.MeshBasicMaterial({ color: 0x1a2233 }));
-      eyeL.position.set(0.28, 0.16, 0.34);
-      const eyeR = eyeL.clone();
-      eyeR.position.z = -0.34;
-      g.add(eyeL); g.add(eyeR);
+      /* 主头球：拉长水滴形（+x 为前进方向） */
+      const headMat = new THREE.MeshStandardMaterial({ color: snake.color, roughness: 0.32, metalness: 0.18, emissive: snake.color, emissiveIntensity: 0.3 });
+      const mainBall = new THREE.Mesh(HEAD_GEO, headMat);
+      mainBall.scale.set(1.35, 0.92, 1.02);
+      mainBall.castShadow = true;
+      g.add(mainBall);
+      /* 吻部（鼻尖）：前下方圆润小鼓包 */
+      const snoutMat = new THREE.MeshStandardMaterial({ color: snake.color, roughness: 0.3, metalness: 0.15, emissive: snake.color, emissiveIntensity: 0.33 });
+      const snout = new THREE.Mesh(SNOUT_GEO, snoutMat);
+      snout.scale.set(1.25, 0.85, 0.95);
+      snout.position.set(0.5, -0.06, 0);
+      snout.castShadow = true;
+      g.add(snout);
+      /* 眼睛：白眼球 + 黑瞳孔（朝前偏上） */
+      const whiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      const pupilMat = new THREE.MeshBasicMaterial({ color: 0x1a2233 });
+      const mkEye = function (side) {
+        const w = new THREE.Mesh(EYE_WHITE_GEO, whiteMat);
+        w.position.set(0.44, 0.26, side * 0.4);
+        const p = new THREE.Mesh(EYE_PUPIL_GEO, pupilMat);
+        p.position.set(0.56, 0.26, side * 0.42);
+        g.add(w); g.add(p);
+      };
+      mkEye(1); mkEye(-1);
+      /* 蛇信：红色分叉（吐信动画由 render 驱动） */
+      const tL = new THREE.Mesh(TONGUE_GEO, tongueMat);
+      tL.position.set(0.8, -0.18, 0.07);
+      tL.rotation.z = 0.26;
+      const tR = tL.clone();
+      tR.position.z = -0.07;
+      tR.rotation.z = -0.26;
+      g.add(tL); g.add(tR);
+      g.userData.tongue = [tL, tR];
       /* 高光小点 */
-      const glint = new THREE.Mesh(new THREE.SphereGeometry(0.045, 5, 4), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-      glint.position.set(0.36, 0.22, 0.34);
+      const glint = new THREE.Mesh(new THREE.SphereGeometry(0.05, 5, 4), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+      glint.position.set(0.56, 0.34, 0.4);
       g.add(glint);
       scene.add(g);
       headGroups.set(snake.id, g);
       return g;
     }
 
-    /* ---------- 食物实例池（三类） ---------- */
-    const foodNormalMat = new THREE.MeshStandardMaterial({ color: 0xff9a5c, emissive: 0xff6a3c, emissiveIntensity: 0.75, roughness: 0.2, metalness: 0.2, envMapIntensity: 1.1 });
-    const foodGoldMat = new THREE.MeshStandardMaterial({ color: 0xffd54d, emissive: 0xffc400, emissiveIntensity: 1.15, roughness: 0.2, metalness: 0.55 });
-    const foodFrostMat = new THREE.MeshStandardMaterial({ color: 0xc8f2ff, emissive: 0x4cc9f0, emissiveIntensity: 0.85, roughness: 0.25, metalness: 0.15 });
+    /* ---------- 食物实例池（三类，明亮醒目） ---------- */
+    const foodNormalMat = new THREE.MeshStandardMaterial({ color: 0xff9a5c, emissive: 0xff6a3c, emissiveIntensity: 1.5, roughness: 0.2, metalness: 0.2, envMapIntensity: 1.1 });
+    const foodGoldMat = new THREE.MeshStandardMaterial({ color: 0xffd54d, emissive: 0xffc400, emissiveIntensity: 1.9, roughness: 0.2, metalness: 0.55 });
+    const foodFrostMat = new THREE.MeshStandardMaterial({ color: 0xc8f2ff, emissive: 0x4cc9f0, emissiveIntensity: 1.6, roughness: 0.25, metalness: 0.15 });
     const foodInstN = new THREE.InstancedMesh(CRYSTAL_GEO, foodNormalMat, 200);
     foodInstN.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     foodInstN.castShadow = true; scene.add(foodInstN);
@@ -1424,8 +1453,8 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     foodInstF.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     foodInstF.castShadow = true; scene.add(foodInstF);
 
-    /* 食物光晕（实例半透明球，Additive） */
-    const haloMat = new THREE.MeshBasicMaterial({ color: 0xfff3d0, transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false });
+    /* 食物光晕（实例半透明球，Additive，更亮更大） */
+    const haloMat = new THREE.MeshBasicMaterial({ color: 0xfff3d0, transparent: true, opacity: 0.42, blending: THREE.AdditiveBlending, depthWrite: false });
     const haloInst = new THREE.InstancedMesh(HALO_GEO, haloMat, 260);
     haloInst.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     scene.add(haloInst);
@@ -1545,6 +1574,15 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
         /* 呼吸微动 */
         const sc = 1 + Math.sin(t * 4 + i) * 0.03;
         g.scale.set(sc, sc, sc);
+        /* 蛇信吐信动画：周期性瞬间伸出 */
+        const fl = Math.pow(Math.max(0, Math.sin(t * 2.6 + i * 1.9)), 10);
+        const tk = 0.84 + fl * 0.85;
+        for (let q = 0; q < 2; q++) {
+          const tl = g.userData.tongue[q];
+          tl.position.z = q === 0 ? 0.08 : -0.08;
+          tl.position.x = tk;
+          tl.visible = fl > 0.008;
+        }
       }
 
       /* 蛇身（实例池：玩家 + AI，instanceColor 分蛇） */
@@ -1556,7 +1594,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
         const n = Math.min(body.length, MAX_SEG);
         for (let k = 0; k < n; k++) {
           const b = body[k];
-          const s = b.head ? 0.62 : 0.5;
+          const s = b.head ? 0.62 : 0.72;
           setInst(segInst, segWrite, b.x, b.y !== undefined ? 0.5 : 0.5, b.y, s, 0, tmpCol.setHex(sn.color));
           segWrite++;
         }
@@ -1570,13 +1608,13 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       let nI = 0, gI = 0, fI = 0;
       for (let i = 0; i < foods.length; i++) {
         const f = foods[i];
-        const bob = 0.55 + Math.sin(t * 3 + f.t * 2) * 0.14;
-        const pulse = 1 + Math.sin(t * 5 + f.t * 3) * 0.13;
+        const bob = 0.6 + Math.sin(t * 3 + f.t * 2) * 0.16;
+        const pulse = 1 + Math.sin(t * 5 + f.t * 3) * 0.15;
         const rot = t * 1.8 + f.id * 0.7;
-        if (f.type === 'gold') setInst(foodInstG, gI++, f.x, bob, f.y, pulse * 1.15, rot, tmpCol.setHex(0xffd54d));
-        else if (f.type === 'frost') setInst(foodInstF, fI++, f.x, bob, f.y, pulse * 0.9, rot, tmpCol.setHex(0x8fd8ff));
-        else setInst(foodInstN, nI++, f.x, bob, f.y, pulse, rot, tmpCol.setHex(0xff8a5c));
-        setInst(haloInst, i, f.x, bob, f.y, 1.25 + pulse * 0.25, 0, tmpCol.setHex(0xfff3d0));
+        if (f.type === 'gold') setInst(foodInstG, gI++, f.x, bob, f.y, pulse * 2.2, rot, tmpCol.setHex(0xffd54d));
+        else if (f.type === 'frost') setInst(foodInstF, fI++, f.x, bob, f.y, pulse * 1.9, rot, tmpCol.setHex(0x8fd8ff));
+        else setInst(foodInstN, nI++, f.x, bob, f.y, pulse * 2.2, rot, tmpCol.setHex(0xff8a5c));
+        setInst(haloInst, i, f.x, bob, f.y, 2.3 + pulse * 0.35, 0, tmpCol.setHex(0xfff3d0));
       }
       foodInstN.count = nI; foodInstN.instanceMatrix.needsUpdate = true;
       if (foodInstN.instanceColor) foodInstN.instanceColor.needsUpdate = true;
@@ -1599,14 +1637,14 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
 
       updateParticles(dt || 0.016);
 
-      /* 摄像机跟随玩家 */
+      /* 摄像机跟随玩家（拉远：可视范围约 2 倍） */
       const pl = world.player;
       if (pl.alive) {
-        const fx = pl.pos.x + Math.cos(pl.angle) * 6;
-        const fy = pl.pos.y + Math.sin(pl.angle) * 6;
-        const target = new THREE.Vector3(pl.pos.x * 0.85 + fx * 0.15, 13 + Math.max(0, pl.len - 4) * 0.05, pl.pos.y * 0.85 + fy * 0.15);
+        const fx = pl.pos.x + Math.cos(pl.angle) * 9;
+        const fy = pl.pos.y + Math.sin(pl.angle) * 9;
+        const target = new THREE.Vector3(pl.pos.x * 0.85 + fx * 0.15, 19 + Math.max(0, pl.len - 4) * 0.05, pl.pos.y * 0.85 + fy * 0.15);
         camera.position.lerp(target, 1 - Math.exp(-3.2 * (dt || 0.016)));
-        camera.lookAt(_v.set(pl.pos.x + Math.cos(pl.angle) * 2.4, 0.4, pl.pos.y + Math.sin(pl.angle) * 2.4));
+        camera.lookAt(_v.set(pl.pos.x + Math.cos(pl.angle) * 3.5, 0.4, pl.pos.y + Math.sin(pl.angle) * 3.5));
       }
       renderer.render(scene, camera);
     }
@@ -1978,7 +2016,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   function boot() {
     /* ---- 核心装配 ---- */
     const engine = V3.Core.createEngine({});
-    const world = V3.World.create({ radius: 42 });
+    const world = V3.World.create({ radius: 72 });
     const audio = V3.Audio.create();
 
     const ui = V3.UI.create(engine, world, {

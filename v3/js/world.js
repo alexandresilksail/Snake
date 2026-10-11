@@ -9,7 +9,7 @@
   const COLL = V3.Collision;
 
   function createWorld(opts) {
-    const map = V3.Map.createMap({ radius: opts.radius || 42 });
+    const map = V3.Map.createMap({ radius: opts.radius || 72 });
     const foods = V3.Food.createSystem(map, opts.rng);
     const rng = opts.rng || Math.random;
 

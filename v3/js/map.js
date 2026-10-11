@@ -7,7 +7,7 @@
   const V3 = global.V3;
 
   function createMap(opts) {
-    const R = opts.radius || 42;         // 竞技场半径
+    const R = opts.radius || 72;         // 竞技场半径
     const innerR = R - 1.2;              // 可活动边界（防出界）
     const borderCount = 36;              // 边界装饰分段数
 

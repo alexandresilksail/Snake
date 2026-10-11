@@ -9,7 +9,7 @@
   function boot() {
     /* ---- 核心装配 ---- */
     const engine = V3.Core.createEngine({});
-    const world = V3.World.create({ radius: 42 });
+    const world = V3.World.create({ radius: 72 });
     const audio = V3.Audio.create();
 
     const ui = V3.UI.create(engine, world, {
