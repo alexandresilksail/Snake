@@ -18,7 +18,11 @@ V3.0 在独立 Git 分支 `v3` 开发，未改动旧版任何文件。
 
 ## 快速开始（PC 网页版）
 
-直接用浏览器打开 `v3/index.html`（Chrome / Edge 均可，需 WebGL）：
+**方式 A（推荐，双击即玩）**：直接用浏览器打开 `v3/index.single.html`。
+该文件为**单文件自包含版**（three.min.js 与全部游戏模块已内联），Chrome / Edge 双击即可，
+拷走、发链接、任何环境预览都不会出现"3D 引擎加载失败"。
+
+**方式 B（完整工程）**：用浏览器打开 `v3/index.html`（多文件版，需与 `three.min.js`、`js/` 同目录）：
 
 ```bash
 cd v3
